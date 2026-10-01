@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Minecraft miner</title>
+
+    <!-- Browser tab logo -->
+    <link rel="icon" type="image/webp" href="my_site_logo.webp">
+
+    <style>
+        body {
+            margin: 0;
+            background: #222;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            cursor: none;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+        }
+
+        #stats {
+            font-size: 22px;
+            line-height: 1.6;
+        }
+
+        #block {
+            width: 220px;
+            height: 220px;
+
+            margin: 65px auto;
+
+            background-image: url("stone.png");
+            background-size: cover;
+            background-position: center;
+
+            border: 4px solid white;
+
+            cursor: none;
+        }
+
+        #pickaxe {
+            position: fixed;
+
+            pointer-events: none;
+
+            width: 80px;
+            height: 80px;
+
+            object-fit: contain;
+
+            image-rendering: pixelated;
+
+            z-index: 100;
+
+            transform:
+                translate(-10px, -10px)
+                rotate(-35deg);
+        }
+
+        #shop {
+            margin-top: 20px;
+
+            display: flex;
+            justify-content: center;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+
+        .pickaxeButton,
+        .autoClickerButton {
+            font-size: 20px;
+
+            padding: 14px 24px;
+
+            cursor: pointer;
+
+            border: 1px solid #aaa;
+
+            background: #eee;
+
+            color: #111;
+        }
+
+        .pickaxeButton:hover,
+        .autoClickerButton:hover {
+            background: white;
+        }
+
+        .pickaxeButton.locked,
+        .autoClickerButton.locked {
+            background: #555;
+            color: #aaa;
+            cursor: not-allowed;
+        }
+
+        .pickaxeButton.owned,
+        .autoClickerButton.owned {
+            background: #777;
+            color: white;
+            cursor: not-allowed;
+        }
+
+        .hit {
+            animation: hit 0.12s;
+        }
+
+        @keyframes hit {
+            50% {
+                transform: scale(0.90);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Minecraft Miner</h1>
+
+    <div id="stats">
+
+        💰 Coins:
+        <span id="coins">0</span>
+
+        <br>
+
+        ⛏️ Pickaxe:
+        <span id="currentPickaxe">Wood</span>
+
+        <br>
+
+        💥 Blocks per click:
+        <span id="power">1</span>
+
+        <br>
+
+        🤖 Auto Clicker:
+        <span id="autoStatus">OFF</span>
+
+    </div>
+
+
+    <!-- BLOCK -->
+
+    <div id="block"></div>
+
+
+    <!-- PICKAXE -->
+
+    <img
+        id="pickaxe"
+        src="woodenpickaxe.png"
+        alt="Pickaxe"
+    >
+
+
+    <!-- PICKAXE SHOP -->
+
+    <h2>Pickaxe Shop</h2>
+
+    <div id="shop">
+
+        <button
+            class="pickaxeButton"
+            onclick="buyPickaxe(0)"
+        >
+            Wood — FREE
+        </button>
+
+        <button
+            class="pickaxeButton"
+            onclick="buyPickaxe(1)"
+        >
+            Stone — 25 coins
+        </button>
+
+        <button
+            class="pickaxeButton"
+            onclick="buyPickaxe(2)"
+        >
+            Iron — 75 coins
+        </button>
+
+        <button
+            class="pickaxeButton"
+            onclick="buyPickaxe(3)"
+        >
+            Diamond — 200 coins
+        </button>
+
+        <button
+            class="pickaxeButton"
+            onclick="buyPickaxe(4)"
+        >
+            Netherite — 500 coins
+        </button>
+
+    </div>
+
+
+    <!-- AUTO CLICKER -->
+
+    <h2>Upgrades</h2>
+
+    <div id="shop">
+
+        <button
+            id="autoClickerButton"
+            class="autoClickerButton"
+            onclick="buyAutoClicker()"
+        >
+            🤖 Auto Clicker — 100 coins
+        </button>
+
+    </div>
+
+
+<script>
+
+    const block =
+        document.getElementById("block");
+
+    const pickaxe =
+        document.getElementById("pickaxe");
+
+
+    let coins = 0;
+
+    let currentPickaxe = 0;
+
+    let highestPickaxe = 0;
+
+
+    /*
+        AUTO CLICKER
+
+        false = not owned
+        true = owned
+    */
+
+    let autoClickerOwned = false;
+
+
+    /*
+        PICKAXES
+
+        Wood = 1 block
+        Stone = 2 blocks
+        Iron = 3 blocks
+        Diamond = 4 blocks
+        Netherite = 10 blocks
+    */
+
+    const pickaxes = [
+
+        {
+            name: "Wood",
+            price: 0,
+            power: 1,
+
+            texture: "stone.png",
+
+            pickaxeTexture: "woodenpickaxe.png"
+        },
+
+        {
+            name: "Stone",
+            price: 25,
+            power: 2,
+
+            texture: "iron.jpg",
+
+            pickaxeTexture: "stonepickaxe.png"
+        },
+
+        {
+            name: "Iron",
+            price: 75,
+            power: 3,
+
+            texture: "diamond.webp",
+
+            pickaxeTexture: "ironpickaxe.png"
+        },
+
+        {
+            name: "Diamond",
+            price: 200,
+            power: 4,
+
+            texture: "netherite.webp",
+
+            pickaxeTexture: "diamondpickaxe.png"
+        },
+
+        {
+            name: "Netherite",
+            price: 500,
+            power: 10,
+
+            texture: "netherite.webp",
+
+            pickaxeTexture: "netheritepickaxe.png"
+        }
+
+    ];
+
+
+    /*
+        PICKAXE FOLLOWS MOUSE
+    */
+
+    document.addEventListener(
+        "mousemove",
+        function(event) {
+
+            pickaxe.style.left =
+                event.clientX + "px";
+
+            pickaxe.style.top =
+                event.clientY + "px";
+
+        }
+    );
+
+
+    /*
+        LEFT MOUSE BUTTON
+    */
+
+    document.addEventListener(
+        "mousedown",
+        function(event) {
+
+            if (event.button !== 0) {
+                return;
+            }
+
+
+            const blockRect =
+                block.getBoundingClientRect();
+
+
+            const mouseOnBlock =
+
+                event.clientX >= blockRect.left &&
+
+                event.clientX <= blockRect.right &&
+
+                event.clientY >= blockRect.top &&
+
+                event.clientY <= blockRect.bottom;
+
+
+            if (!mouseOnBlock) {
+                return;
+            }
+
+
+            mine();
+
+        }
+    );
+
+
+    /*
+        MINE BLOCK
+    */
+
+    function mine() {
+
+        const power =
+            pickaxes[currentPickaxe].power;
+
+
+        /*
+            GIVE COINS
+        */
+
+        coins += power;
+
+
+        updateStats();
+
+
+        /*
+            PICKAXE SWING
+        */
+
+        pickaxe.style.transform =
+            "translate(-10px, -10px) rotate(-70deg)";
+
+
+        setTimeout(function() {
+
+            pickaxe.style.transform =
+                "translate(-10px, -10px) rotate(-35deg)";
+
+        }, 120);
+
+
+        /*
+            BLOCK HIT ANIMATION
+        */
+
+        block.classList.remove("hit");
+
+        void block.offsetWidth;
+
+        block.classList.add("hit");
+
+    }
+
+
+    /*
+        BUY PICKAXE
+
+        Each pickaxe can only be bought ONCE.
+    */
+
+    function buyPickaxe(index) {
+
+        const selected =
+            pickaxes[index];
+
+
+        /*
+            PREVIOUS PICKAXES
+            CANNOT BE BOUGHT AGAIN
+        */
+
+        if (index < highestPickaxe) {
+
+            alert(
+                "🔒 This pickaxe is locked!"
+            );
+
+            return;
+        }
+
+
+        /*
+            CURRENT PICKAXE
+            IS ALREADY OWNED
+        */
+
+        if (index === highestPickaxe) {
+
+            if (index === 0) {
+
+                alert(
+                    "✅ You already own the Wood pickaxe!"
+                );
+
+            } else {
+
+                alert(
+                    "🔒 You already bought this pickaxe!"
+                );
+
+            }
+
+            return;
+        }
+
+
+        /*
+            CHECK COINS
+        */
+
+        if (coins >= selected.price) {
+
+            /*
+                PAY FOR PICKAXE
+            */
+
+            coins -= selected.price;
+
+
+            /*
+                UNLOCK PICKAXE
+            */
+
+            highestPickaxe = index;
+
+            currentPickaxe = index;
+
+
+            /*
+                CHANGE BLOCK TEXTURE
+            */
+
+            block.style.backgroundImage =
+                'url("' + selected.texture + '")';
+
+
+            /*
+                CHANGE PICKAXE TEXTURE
+            */
+
+            pickaxe.src =
+                selected.pickaxeTexture;
+
+
+            updateStats();
+
+        } else {
+
+            alert(
+                "You need " +
+                (selected.price - coins) +
+                " more coins!"
+            );
+
+        }
+
+    }
+
+
+    /*
+        BUY AUTO CLICKER
+
+        COST = 100 COINS
+
+        CAN ONLY BE BOUGHT ONCE
+    */
+
+    function buyAutoClicker() {
+
+        /*
+            CHECK IF ALREADY OWNED
+        */
+
+        if (autoClickerOwned) {
+
+            alert(
+                "✅ You already own the Auto Clicker!"
+            );
+
+            return;
+        }
+
+
+        /*
+            CHECK IF PLAYER HAS 100 COINS
+        */
+
+        if (coins < 100) {
+
+            alert(
+                "You need " +
+                (100 - coins) +
+                " more coins!"
+            );
+
+            return;
+        }
+
+
+        /*
+            PAY 100 COINS
+        */
+
+        coins -= 100;
+
+
+        /*
+            OWN THE AUTO CLICKER
+        */
+
+        autoClickerOwned = true;
+
+
+        /*
+            UPDATE SCREEN
+        */
+
+        updateStats();
+
+
+        /*
+            START AUTO CLICKING
+        */
+
+        startAutoClicker();
+
+
+        alert(
+            "🤖 Auto Clicker purchased!"
+        );
+
+    }
+
+
+    /*
+        AUTO CLICKER
+
+        Mines once every second.
+    */
+
+    function startAutoClicker() {
+
+        setInterval(function() {
+
+            if (autoClickerOwned) {
+
+                mine();
+
+            }
+
+        }, 1000);
+
+    }
+
+
+    /*
+        UPDATE PICKAXE SHOP
+    */
+
+    function updateShop() {
+
+        const buttons =
+            document.querySelectorAll(
+                ".pickaxeButton"
+            );
+
+
+        buttons.forEach(
+            function(button, index) {
+
+                /*
+                    OLD PICKAXES
+                    ARE LOCKED
+                */
+
+                if (index < highestPickaxe) {
+
+                    button.classList.remove(
+                        "owned"
+                    );
+
+                    button.classList.add(
+                        "locked"
+                    );
+
+                    button.textContent =
+                        pickaxes[index].name +
+                        " — 🔒 LOCKED";
+
+                }
+
+
+                /*
+                    CURRENT PICKAXE
+                    IS OWNED
+                */
+
+                else if (
+                    index === highestPickaxe
+                ) {
+
+                    button.classList.remove(
+                        "locked"
+                    );
+
+                    button.classList.add(
+                        "owned"
+                    );
+
+                    button.textContent =
+                        pickaxes[index].name +
+                        " — ✅ OWNED";
+
+                }
+
+
+                /*
+                    NEXT PICKAXES
+                    CAN BE BOUGHT
+                */
+
+                else {
+
+                    button.classList.remove(
+                        "locked"
+                    );
+
+                    button.classList.remove(
+                        "owned"
+                    );
+
+                    button.textContent =
+                        pickaxes[index].name +
+                        " — " +
+                        pickaxes[index].price +
+                        " coins";
+
+                }
+
+            }
+        );
+
+
+        /*
+            UPDATE AUTO CLICKER BUTTON
+        */
+
+        const autoButton =
+            document.getElementById(
+                "autoClickerButton"
+            );
+
+
+        if (autoClickerOwned) {
+
+            autoButton.textContent =
+                "🤖 Auto Clicker — ✅ OWNED";
+
+            autoButton.classList.remove(
+                "locked"
+            );
+
+            autoButton.classList.add(
+                "owned"
+            );
+
+        } else {
+
+            autoButton.textContent =
+                "🤖 Auto Clicker — 100 coins";
+
+            autoButton.classList.remove(
+                "owned"
+            );
+
+
+            if (coins < 100) {
+
+                autoButton.classList.add(
+                    "locked"
+                );
+
+            } else {
+
+                autoButton.classList.remove(
+                    "locked"
+                );
+
+            }
+
+        }
+
+    }
+
+
+    /*
+        UPDATE STATS
+    */
+
+    function updateStats() {
+
+        document.getElementById("coins")
+            .textContent = coins;
+
+
+        document.getElementById(
+            "currentPickaxe"
+        ).textContent =
+            pickaxes[currentPickaxe].name;
+
+
+        document.getElementById("power")
+            .textContent =
+            pickaxes[currentPickaxe].power;
+
+
+        /*
+            AUTO CLICKER STATUS
+        */
+
+        document.getElementById(
+            "autoStatus"
+        ).textContent =
+            autoClickerOwned
+                ? "ON"
+                : "OFF";
+
+
+        /*
+            UPDATE MOUSE PICKAXE
+        */
+
+        pickaxe.src =
+            pickaxes[currentPickaxe]
+                .pickaxeTexture;
+
+
+        /*
+            UPDATE SHOP
+        */
+
+        updateShop();
+
+    }
+
+
+    /*
+        START GAME
+    */
+
+    updateStats();
+
+</script>
+
+</body>
+</html>
